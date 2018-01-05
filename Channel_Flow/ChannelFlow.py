@@ -109,97 +109,49 @@ def fillMat():
                 continue
 
             pc = int(p[i][j][3])
+
+            h = deta    # Assuming uniform grid
             
             a, b, c, d, e, J = calcCoef(i, j)
+            
 
-            # For uee and ue
-            if i == 0:                                                  # At any left most point
-                
-                #uee = (u[i][j] - 2u[i+1][j] + u[i+2][j]) / deta**2
-                append(pc, i, j, - a / J**2 / deta**2)
-                append(pc, i+1, j, 2 * a / J**2 / deta**2)
-                append(pc, i+2, j, - a / J**2 / deta**2)
-                
-                if p[i][j][2] != 1:                                     # If no Neumann, otherwise zero
-                    
-                    #ue = (u[i+2][j] - u[i][j]) / 2 / deta
-                    append(pc, i, j, d / J**2 / 2 / deta)
-                    append(pc, i+2, j, - d / J**2 / 2 / deta)
-                    
-                    
-            elif i == n-1:                                              # At any right most point
-                
-                #uee = (u[i-2][j] - 2u[i-1][j] + u[i][j]) / deta**2
-                append(pc, i, j, - a / J**2 / deta**2)
-                append(pc, i-1, j, 2 * a / J**2 / deta**2)
-                append(pc, i-2, j, - a / J**2 / deta**2)
-                
-                if p[i][j][2] != 1:
-                    
-                    #ue = (u[i][j] - u[i-2][j]) / 2 / deta
-                    append(pc, i, j, - d / J**2 / 2 / deta)
-                    append(pc, i-2, j, d / J**2 / 2 / deta)
-                    
-            else:
-                
-                #uee = (u[i-1][j] - 2u[i][j] + u[i+1][j]) / deta**2
-                append(pc, i, j, 2 * a / J**2 / deta**2)
-                append(pc, i+1, j, - a / J**2 / deta**2)
-                append(pc, i-1, j, - a / J**2 / deta**2)
-                
-                #ue = (u[i+1][j] - u[i-1][j]) / 2 / deta
-                append(pc, i+1, j, - d / J**2 / 2 / deta)
-                append(pc, i-1, j, d / J**2 / 2 / deta)
+            append(pc, i, j, 2 * (a + c) / h**2 / J**2)
 
+            if i == 0 and j != (m-1):   # Left
 
-            # For unn and un
-            if j == 0:                                                  # At any bottom most point
-                
-                #unn = (u[i][j] - 2u[i][j+1] + u[i][j+2]) / dxi**2
-                append(pc, i, j, - c / J**2 / dxi**2)
-                append(pc, i, j+1, 2 * c / J**2 / dxi**2)
-                append(pc, i, j+2, - c / J**2 / dxi**2)
-                
-                if p[i][j][2] != 1:
+                append(pc, i+1, j, - 2 * a / h**2 / J**2)
 
-                    #un = (u[i][j+2] - u[i][j]) / 2 / dxi
-                    append(pc, i, j, e / J**2 / 2 / dxi)
-                    append(pc, i, j+2, - e / J**2 / 2 / dxi)
-                    
-            elif j == m-1:                                              # At any top most point
-                
-                #unn = (u[i][j-2] - 2u[i][j-1] + u[i][j]) / dxi**2
-                append(pc, i, j, - c / J**2 / dxi**2)
-                append(pc, i, j-1, 2 * c / J**2 / dxi**2)
-                append(pc, i, j-2, - c / J**2 / dxi**2)
-                
-                if p[i][j][2] != 1:
-                    
-                    #un = (u[i][j] - u[i][j-2]) / 2 / dxi
-                    append(pc, i, j, - e / J**2 / 2 / dxi)
-                    append(pc, i, j-2, e / J**2 / 2 / dxi)
-                    
-            else:
-                
-                #unn = (u[i][j-1] - 2u[i][j] + u[i][j+1]) / dxi**2
-                append(pc, i, j, 2 * c / J**2 / dxi**2)
-                append(pc, i, j+1, - c / J**2 / dxi**2)
-                append(pc, i, j-1, - c / J**2 / dxi**2)
-                
-                #un = (u[i][j+1] - u[i][j-1]) / 2 / dxi
-                append(pc, i, j+1, - e / J**2 / 2 / dxi)
-                append(pc, i, j-1, e / J**2 / 2 / dxi)
+                if j != 1:
+                    append(pc, i, j-1, - (c/ h**2 - e / 2 / h) / J**2)
 
+                append(pc, i, j+1, - (c/ h**2 + e / 2 / h) / J**2)
 
-            # For uen
-            if i != 0 and j != m-1:          # For left and top - Not generalized!!!
+            elif j == (m-1) and i != 0:   # Top
 
-                #uen = (u[i+1][j+1] + u[i-1][j-1] - u[i-1][j+1] - u[i+1][j-1]) / 4 / deta / dxi
+                append(pc, i-1, j, - (a / h**2 - d / 2 / h) / J**2)
 
-                append(pc, i+1, j+1, 2 * b / J**2 / 4 / deta / dxi)
-                append(pc, i-1, j-1, 2 * b / J**2 / 4 / deta / dxi)
-                append(pc, i-1, j+1, - 2 * b / J**2 / 4 / deta / dxi)
-                append(pc, i+1, j-1, - 2 * b / J**2 / 4 / deta / dxi)        
+                if i != (n-2):
+                    append(pc, i+1, j, - (a / h**2 + d / 2 / h) / J**2)
+
+                append(pc, i, j-1, - 2 * c / h**2 / J**2)
+
+            elif i == 0 and j == (m-1):   #Corner
+
+                append(pc, i+1, j, - 2 * a / h**2 / J**2)
+
+                append(pc, i, j-1, - 2 * c / h**2 / J**2)
+
+            else:                       #Interior
+
+                append(pc, i-1, j, - (a / h**2 - d / 2 / h) / J**2)
+
+                if i != (n-2):
+                    append(pc, i+1, j, - (a / h**2 + d / 2 / h) / J**2)
+
+                if j != 1:
+                    append(pc, i, j-1, - (c/ h**2 - e / 2 / h) / J**2)
+
+                append(pc, i, j+1, - (c/ h**2 + e / 2 / h) / J**2)      
 
 
     
@@ -333,28 +285,8 @@ def reset(l_new, b_new, h_new, n_new, m_new):
     y = np.zeros([n, m])
                
 
-
-inp = np.zeros([3])
-Q = np.zeros([3])
-L2 = np.zeros([3])
-Linf = np.zeros([3])
-solve(3.0, 1.0, 1.0, 81, 81)     # l, b, h, n, m
-Q_ref, L2_ref, Linf_ref = postProc()
-for t in range(0, 3):
-    n_test = 2**t*10+1
-    solve(3.0, 1.0, 1.0, n_test, n_test)     # l, b, h, n, m
-    Q_test, L2_test, Linf_test = postProc()
-    inp[t] = n_test
-    Q[t] = abs((Q_test - Q_ref) / Q_ref) * 100
-    L2[t] = abs((L2_test - L2_ref) / L2_ref) * 100
-    Linf[t] = abs((Linf_test - Linf_ref) / Linf_ref) * 100
-
-f, axarr = plt.subplots(3, sharex=True)
-axarr[0].plot(inp, Q, '-o')
-axarr[0].set_title('Error % in Flow Rate')
-axarr[1].plot(inp, L2, '-o')
-axarr[1].set_title('Error % in L2 norm')
-axarr[2].plot(inp, Linf, '-o')
-axarr[2].set_title('Error % in Linf norm')
-plt.xlabel('Grid Size')
-plt.show()
+def getMOI(t):
+    d = (l - b) / 2
+    NA = h * d / (2 * d + b)
+    I = NA**2 * b * t + 2 * d * t * (h**2 - 3 * h * NA + 3 * NA**2) / 3
+    return I
