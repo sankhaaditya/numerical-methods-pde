@@ -4,15 +4,24 @@ from numpy.linalg import inv
 import scipy
 from scipy import sparse
 import matplotlib.pyplot as plt
-import math
-import time
+import itertools as it
+
+# inputs
+fineness = 4
+#source = [1, 7, 14, 16]
+om = 1.4
+
+N = (fineness * 6) + 1
+h = 1 / (N-1)
+dt = h**2 / 4
+u = np.zeros([N, N])
+f = np.zeros([N, N])
 
 
-def sourceSetup(N, source, p):
-
-    f = np.zeros([(N-2)**2])
-
-    fineness = int((N-1) / 6)
+def sourceSetup(source):
+    
+    global f
+    f = np.zeros([N, N])
     
     for k in range(0, len(source)):
 
@@ -25,127 +34,34 @@ def sourceSetup(N, source, p):
         for m in range(0, fineness+1):
             for n in range(0, fineness+1):
                 
-                f[int(p[i+m][j+n])] = 1.0
+                f[i+m][j+n] = 1.0
+                
 
-    return f
+def update():
 
-
-def generateMatrix(L, N, source):
-
-    h = L / (N-1)
-
-    p = np.zeros([N, N])
-    neq = 0
-
-    for i in range(0, N):
-        for j in range(0, N):
-
-            if i == 0 or i == N-1 or j == 0 or j == N-1:
-                p[i][j] = -1
-            else:
-                p[i][j] = neq
-                neq += 1
-
-    row = []
-    col = []
-    data = []
-
-    def append(pc, i, j, d):
-        
-        if p[i][j] != -1:
-            
-            row.append(pc)
-            col.append(p[i][j])
-            data.append(d)
-    
     for i in range(1, N-1):
         for j in range(1, N-1):
-
-            pc = p[i][j]
-            append(pc, i, j, 4 / h**2)
-            append(pc, i-1, j, -1 / h**2)
-            append(pc, i+1, j, -1 / h**2)
-            append(pc, i, j-1, -1 / h**2)
-            append(pc, i, j+1, -1 / h**2)
-
-    A = sparse.coo_matrix((data, (row, col)))
-    D = np.diag(np.diag(A.todense()))
-    L = np.tril(A.todense()) - D
-    U = np.triu(A.todense()) - D
-
-    f = sourceSetup(N, source, p)
     
-    return D, L, U, f
+            u[i][j] = om * (u[i][j] + dt * ( u[i-1][j-1] + u[i+1][j-1] + u[i-1][j+1] + u[i+1][j+1] - 4 * u[i][j] ) / h**2 + dt * f[i][j]) + (1 - om) * u[i][j]
 
+                
 
-def calcRF(R):
+testList = list(it.combinations(range(1, 17), 4))
+for i in range(0, len(testList)):
 
-    om_opt = 1.0
-    minSR = 1.0
-
-    eigR = la.eigvals(R)
+    print(i)
     
-    for i in range(0, 41):
-        om = i * 0.05
-        SR = max(abs(om * eigR - om + 1))
-        print(om, SR)
-        if SR < minSR:
-            minSR = SR
-            om_opt = om
+    sourceSetup(testList[i])
     
-    return 1.0, max(abs(la.eigvals(R)))
-    #return om_opt, minSR
-        
+    for t in range(0, 3000):
+        update()
+        if error < error_old:
+            error_old = error
+        else:
+            break
 
-
-def iterate(R, b, N):
-
-    om, specRad = calcRF(R)
-
-    u = np.zeros((N-2)**2)
+    if error_old < 1.0:
+        print(testList[i], t, error_old)
     
-    if specRad > 1:
-        print('Not Convergent!')
-        return
-
-    else:
-        r = -1 / math.log(specRad, 10)
-        print(r)
-        for t in range(0, 5*math.ceil(r)):
-            u = (om * R - om + 1).dot(u) + om * b
-        
-    return u
-
-
-def jacobi(L, N, source):
-    
-    D, L, U, f = generateMatrix(L, N, source)
-
-    Dinv = inv(D)
-    b = Dinv.dot(f)
-    RJ = -Dinv.dot(L+U)
-
-    u = iterate(RJ, b, N)
-    
-    return u
-
-    
-def gs(L, N, source):
-
-    D, L, U, f = generateMatrix(L, N, source)
-
-    DLinv = inv(D+L)
-    b = DLinv.dot(f)
-    RGS = -DLinv.dot(U)
-
-    u = iterate(RGS, b, N)
-
-    return u
-    
-
-L = 1
-N = 25
-source = [1, 7, 14, 16]
-u = gs(L, N, source)
-#u = jacobi(L, N, source)
-print(u[528] * 24)
+#for i in range(0, N):
+#    print(i+1, 2 * u[1][i] / h, 2 * u[N-2][i] / h, 2 * u[i][1] / h, 2 * u[i][N-2] / h)
