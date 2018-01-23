@@ -1,86 +1,96 @@
-
-import math
+import numpy as np
 import sys
 import time
-import numpy as np
-from numpy import linalg as la
-from numpy.linalg import inv
-import scipy
-from scipy import sparse
-from scipy.sparse.linalg import inv
-import GridUtils as gu
-import DiscUtils as du
-import IterUtils as iu
+import math as m
+import solver as s
 
 
-def VCycle(N, u, f, level):
+def vCycle(N, u, f, level):
 
-    u, eqn, neq = gu.applyBC(u, N)
-
-    b = gu.getNonBound(f, eqn, neq)
-    
-    A = du.matLaplace(eqn, neq, N)
-    
-    x = gu.getNonBound(u, eqn, neq)
-    
-    # Find RGS and fGS
-    
-    RGS, fGS = iu.GaussSeidel(A, b)
-    
-    # Iterate thrice using Gauss-Seidel :
+    # Iterate 3 times on (h) :
 
     for t in range(0, 3):
-        
-        x = RGS.dot(x) + fGS
+        u = s.GaussSeidel(N, u, f)
 
-    if level > 0:
+    # If it has reached (8h) :
+    
+    if level == 0:
+        return u
 
-        # Get residual :
-        
-        tr = A.dot(x) - b
-        
-        # Residual for all grid points :
+    # Calculate truncation error on (2h)
 
-        tr_all = np.zeros([N**2])
+    N2 = int((N - 1) / 2) + 1
 
-        tr_all = gu.updateNonBound(tr_all, tr, eqn, neq)
+    tr2 = np.zeros([N2**2])
 
-        # Restrict to half fineness
-        
-        tr_all = gu.restrict(tr_all, N)
+    for i2 in range(0, (N2-2)):
+        for j2 in range(0, (N2-2)):
 
-        N2 = int((N-1)/2+1)
+            # (i, j) mapping
 
-        # Recurse for tr_all
+            i = 2 * i2 + 1
+            j = 2 * j2 + 1
 
-        e = np.zeros([N2**2])
-        
-        e = VCycle(N2, e, - tr_all, level - 1)
-        
-        # Propagate e
-        
-        e = gu.prolongate(e, N2)
-        
-        # Correct u with e
+            # Positions
 
-        u = u + e
+            k2 = s.getPos(i2, j2, N2)
+            k = s.getPos(i, j, N)
 
-        # Get x from u
+            # Evaluating matrix equation
 
-        x = gu.getNonBound(u, eqn, neq)
+            val = s.neighPoints(u, i, j, N)
 
-        # Iterate thrice more
+            val -= 4 * u[k]
 
-        for t in range(0, 3):
-        
-            x = RGS.dot(x) + fGS
+            val *= (N-1)**2
 
-    #else:
+            val += f[k]
 
-        # Direct calculation
+            tr2[k2] = val
 
-        #x = scipy.sparse.linalg.inv(A).dot(b)
-        
-    u = gu.updateNonBound(u, x, eqn, neq)
+    # Initial error guess
+
+    e2 = np.zeros([N2**2])
+            
+    e2 = vCycle(N2, e2, tr2, level-1)
+
+    # Prolongate e2 and correct u
+
+    for i in range(0, (N-2)):
+        for j in range(0, (N-2)):
+
+            k = s.getPos(i, j, N)
+            
+            i2 = (i - 1) / 2
+            j2 = (j - 1) / 2
+            
+            if i % 2 == 1 and j % 2 == 1:
+                # If i odd, j odd
+
+                u[k] += e2[s.getPos(int(i2), int(j2), N2)]
+
+            if i % 2 == 0 and j % 2 == 1:
+                # If i even, j odd
+
+                u[k] += (e2[s.getPos(m.floor(i2), int(j2), N2)]
+                        + e2[s.getPos(m.ceil(i2), int(j2), N2)]) / 2
+
+            if i % 2 == 1 and j % 2 == 0:
+                # If i odd, j even
+                u[k] += (e2[s.getPos(int(i2), m.floor(j2), N2)]
+                        + e2[s.getPos(int(i2), m.ceil(j2), N2)]) / 2
+
+            if i % 2 == 0 and j % 2 == 0:
+                # If i even, j even
+
+                u[k] += (e2[s.getPos(m.floor(i2), m.floor(j2), N2)]
+                        + e2[s.getPos(m.ceil(i2), m.ceil(j2), N2)]
+                        + e2[s.getPos(m.ceil(i2), m.floor(j2), N2)]
+                        + e2[s.getPos(m.floor(i2), m.ceil(j2), N2)]) / 4
+
+    # Iterate 3 more times on (h) :
+
+    for t in range(0, 3):
+        u = s.GaussSeidel(N, u, f)
 
     return u

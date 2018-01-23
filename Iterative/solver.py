@@ -1,67 +1,118 @@
 import numpy as np
-from numpy import linalg as la
-from numpy.linalg import inv
-import scipy
-from scipy import sparse
-import matplotlib.pyplot as plt
-import itertools as it
-
-# inputs
-fineness = 4
-#source = [1, 7, 14, 16]
-om = 1.4
-
-N = (fineness * 6) + 1
-h = 1 / (N-1)
-dt = h**2 / 4
-u = np.zeros([N, N])
-f = np.zeros([N, N])
+import sys
+import time
+import math
 
 
-def sourceSetup(source):
+# Setting up the sources
+
+def sourceSetup(N, S):
+
+    # Source blocks defined in 7x7
+    # Fineness of our grid then is:
+
+    fine = int((N-1) / 6)
+
+    # Define NxN discretized f vector
+
+    f = np.zeros([N**2])
+
+    # Looping through the 4 blocks
     
-    global f
-    f = np.zeros([N, N])
-    
-    for k in range(0, len(source)):
+    for s in S:
 
-        i_orig = int((source[k]-1) / 4) + 1
-        j_orig = (source[k]-1) % 4 + 1
+        # Only valid block numbers
 
-        i = i_orig * fineness
-        j = j_orig * fineness
- 
-        for m in range(0, fineness+1):
-            for n in range(0, fineness+1):
-                
-                f[i+m][j+n] = 1.0
-                
+        if s >= 1 and s <= 16:
 
-def update():
+            # What is k of block root point in NxN grid?
 
-    for i in range(1, N-1):
-        for j in range(1, N-1):
-    
-            u[i][j] = om * (u[i][j] + dt * ( u[i-1][j-1] + u[i+1][j-1] + u[i-1][j+1] + u[i+1][j+1] - 4 * u[i][j] ) / h**2 + dt * f[i][j]) + (1 - om) * u[i][j]
+            r_k = N * fine * (math.floor((s - 1) / 4) + 1) + fine * ((s - 1) % 4 + 1)
+            
+            # Looping over grid point falling within block :
 
-                
+            for i in range(0, fine+1):
+                for j in range(0, fine+1):
 
-testList = list(it.combinations(range(1, 17), 4))
-for i in range(0, len(testList)):
+                    # What is k of grid point?
+                    
+                    p_k = r_k + N * i + j
 
-    print(i)
-    
-    sourceSetup(testList[i])
-    
-    for t in range(0, 3000):
-        update()
-        if error < error_old:
-            error_old = error
+                    f[p_k] = 1.0
+
         else:
-            break
 
-    if error_old < 1.0:
-        print(testList[i], t, error_old)
+            print('Source blocks numbers can only be 1 - 16!')
+            sys.exit()
+
+    return f
+
+
+# Calculate absolute position based on (i, j) in variables domain
+
+def getPos(i, j, N):
+
+    return (N * (i + 1) + j + 1)
+
+
+def neighPoints(u, i, j, N):
+
+    val = 0.0
+
+    # Point on Left
+
+    if i > 0:
+
+        k_p = getPos(i-1, j, N)
+
+        val += u[k_p]
+
+    # Point on Right
+
+    if i < (N-3):
+
+        k_p = getPos(i+1, j, N)
+
+        val += u[k_p]
+
+    # Point Below
+
+    if j > 0:
+
+        k_p = getPos(i, j-1, N)
+
+        val += u[k_p]
+
+    # Point Above
+
+    if j < (N-3):
+
+        k_p = getPos(i, j+1, N)
+
+        val += u[k_p]
+
+    return val
+
+
+# Gauss-Seidel cycle
+
+def GaussSeidel(N, u, f):    
     
-#for i in range(0, N):
-#    print(i+1, 2 * u[1][i] / h, 2 * u[N-2][i] / h, 2 * u[i][1] / h, 2 * u[i][N-2] / h)
+    # Iterating over internal points (variables)
+
+    for i in range(0, (N-2)):
+        for j in range(0, (N-2)):
+
+            # Position
+            
+            k = getPos(i, j, N)
+
+            val = neighPoints(u, i, j, N)
+
+            # Add force term
+
+            val += (f[k] / (N-1)**2)
+
+            u[k] = val / 4
+
+    return u
