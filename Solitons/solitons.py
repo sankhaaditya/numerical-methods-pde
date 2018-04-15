@@ -1,6 +1,4 @@
 import numpy as np
-import math as ma
-import matplotlib.pyplot as plt
 
 
 def f(u, dx):
@@ -20,15 +18,13 @@ def f(u, dx):
 
 def a(u, dx, dt):
 
-    dtfu = dt*f(u, dx)
+    a1 = dt*f(u, dx)
 
-    a1 = dtfu
-
-    a2 = dtfu + dt*f(a1/2, dx)
+    a2 = dt*f(u+a1/2, dx)
     
-    a3 = dtfu + dt*f(a2/2, dx)
+    a3 = dt*f(u+a2/2, dx)
 
-    a4 = dtfu + dt*f(a3, dx)
+    a4 = dt*f(u+a3, dx)
 
     return (a1+2*a2+2*a3+a4)/6
 
